@@ -13,6 +13,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// Check if config is present (useful for debugging blank page)
+if (!firebaseConfig.apiKey) {
+  console.error("Firebase API Key is missing! Check your environment variables on Vercel.");
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
@@ -21,6 +26,13 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
+let analytics = null;
+try {
+  analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+} catch (error) {
+  console.warn("Firebase Analytics failed to initialize:", error);
+}
+
+export { analytics };
 export default app;
