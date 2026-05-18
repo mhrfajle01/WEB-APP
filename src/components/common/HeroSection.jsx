@@ -3,7 +3,7 @@ import { ArrowRight, Zap, Shield, Globe } from "lucide-react";
 
 const HeroSection = () => {
   return (
-    <div className="bg-white py-5 mb-5 border-bottom overflow-hidden position-relative">
+    <div className="bg-white py-5 mb-5 border-bottom overflow-hidden position-relative" style={{ paddingTop: 'var(--header-height)' }}>
       <div className="container position-relative z-1 py-4">
         <div className="row align-items-center">
           <div className="col-lg-6 mb-5 mb-lg-0">

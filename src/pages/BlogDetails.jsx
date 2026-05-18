@@ -151,10 +151,10 @@ const BlogDetails = () => {
         </div>
       </div>
 
-      <div className="container">
+      <div className="container" style={{ paddingTop: '2rem' }}>
         <div className="row">
-          <div className="col-lg-8">
-            <article className="bg-white p-3 p-md-5 rounded-4 shadow-sm mb-5">
+          <div className="col-lg-8 mx-auto">
+            <article className="bg-white p-3 p-md-5 rounded-4 shadow-sm mb-5 border">
               {/* Content */}
               <div 
                 className="blog-content lh-lg"
@@ -186,9 +186,9 @@ const BlogDetails = () => {
             <AdBanner label="Post Bottom Ad Slot" height="200px" />
 
             {/* Author Box */}
-            <div className="bg-light p-4 rounded-4 mb-5 border-start border-primary border-5 shadow-sm">
+            <div className="bg-white border p-4 rounded-4 mb-5 shadow-sm">
               <div className="d-flex align-items-center gap-3 gap-md-4">
-                <img src="https://via.placeholder.com/100" className="rounded-circle shadow-sm author-img" width="80" height="80" alt="Admin" />
+                <img src="https://via.placeholder.com/100" className="rounded-circle shadow-sm author-img border" width="80" height="80" alt="Admin" />
                 <div>
                   <h6 className="fw-bold mb-1">Written by Admin</h6>
                   <p className="text-muted small mb-0">
@@ -206,7 +206,7 @@ const BlogDetails = () => {
             </div>
           </div>
 
-          <div className="col-lg-4">
+          <div className="col-lg-4 d-lg-none">
             <Sidebar />
           </div>
         </div>

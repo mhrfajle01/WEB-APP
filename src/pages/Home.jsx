@@ -41,7 +41,7 @@ const Home = () => {
 
       <div className="container pb-5">
         <div className="row">
-          <div className="col-lg-8">
+          <div className="col-lg-8 mx-auto">
             <div className="d-flex justify-content-between align-items-end mb-4">
               <div>
                 <h2 className="fw-bold display-font mb-0">Latest Articles</h2>
@@ -89,7 +89,7 @@ const Home = () => {
             )}
           </div>
 
-          <div className="col-lg-4">
+          <div className="col-lg-4 d-lg-none">
             <Sidebar />
           </div>
         </div>

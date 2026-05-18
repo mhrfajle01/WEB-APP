@@ -33,20 +33,20 @@ const CategoryPage = () => {
   const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
 
   return (
-    <div className="py-5">
+    <div className="pb-5" style={{ paddingTop: 'calc(var(--header-height) + 2rem)' }}>
       <SEOHead 
         title={`${categoryName} Articles`} 
         description={`Browse our collection of articles about ${categoryName}.`} 
       />
       
       <div className="container">
-        <div className="bg-white p-5 rounded-4 shadow-sm mb-5 border-start border-primary border-5">
+        <div className="bg-white p-4 p-md-5 rounded-4 shadow-sm mb-5 border-start border-primary border-5">
           <h1 className="display-4 fw-bold display-font mb-2">{categoryName}</h1>
           <p className="text-muted mb-0">Exploring the best in {categoryName} from around the web.</p>
         </div>
 
         <div className="row">
-          <div className="col-lg-8">
+          <div className="col-lg-8 mx-auto">
             {loading ? (
               <LoadingSkeleton />
             ) : (
@@ -62,7 +62,7 @@ const CategoryPage = () => {
             )}
           </div>
 
-          <div className="col-lg-4">
+          <div className="col-lg-4 d-lg-none">
             <Sidebar />
           </div>
         </div>
