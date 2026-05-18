@@ -29,6 +29,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <div id="error-reporter" style="display:none; padding: 20px; color: red; font-family: monospace; background: #ffeeee; border: 1px solid red; margin: 20px; border-radius: 8px;">
+      <h3 style="margin-top:0">Critical App Error</h3>
+      <div id="error-message"></div>
+      <p style="margin-top:10px; font-size:12px; color:#666">Check the browser console (F12) for more details.</p>
+    </div>
+
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        document.getElementById('error-reporter').style.display = 'block';
+        document.getElementById('error-message').innerText = message + '\nAt: ' + source + ':' + lineno;
+        return false;
+      };
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
