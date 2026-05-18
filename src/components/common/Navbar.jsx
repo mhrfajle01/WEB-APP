@@ -1,20 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { loginWithGoogle, logoutUser } from "../../services/authService";
-import { LogIn, LogOut, LayoutDashboard } from "lucide-react";
+import { logoutUser } from "../../services/authService";
+import { LogOut, LayoutDashboard } from "lucide-react";
+import { SettingsIcon } from "./Icons";
 
 
 const Navbar = () => {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
-
-  const handleLogin = async () => {
-    try {
-      await loginWithGoogle();
-    } catch (error) {
-      console.error("Login failed", error);
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -66,6 +59,11 @@ const Navbar = () => {
                       </Link>
                     </li>
                   )}
+                  <li>
+                    <Link className="dropdown-item py-2" to="/settings">
+                      <SettingsIcon size={18} className="me-2" /> Settings
+                    </Link>
+                  </li>
                   <li><hr className="dropdown-divider" /></li>
                   <li>
                     <button className="dropdown-item py-2 text-danger" onClick={handleLogout}>
@@ -75,10 +73,13 @@ const Navbar = () => {
                 </ul>
               </li>
             ) : (
-              <li className="nav-item ms-lg-3">
-                <button className="btn btn-primary rounded-pill px-4 d-flex align-items-center" onClick={handleLogin}>
-                  <LogIn size={18} className="me-2" /> Login
-                </button>
+              <li className="nav-item ms-lg-3 d-flex gap-2">
+                <Link to="/login" className="btn btn-outline-primary rounded-pill px-4">
+                  Login
+                </Link>
+                <Link to="/signup" className="btn btn-primary rounded-pill px-4">
+                  Sign Up
+                </Link>
               </li>
             )}
           </ul>

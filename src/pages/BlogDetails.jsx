@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
-import { getPostBySlug } from "../services/blogService";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { getPostBySlug, likePost, unlikePost } from "../services/blogService";
 import SEOHead from "../components/common/SEOHead";
 import Sidebar from "../components/sidebar/Sidebar";
 import DOMPurify from "dompurify";
@@ -13,14 +13,20 @@ import {
   ChevronLeft,
   Twitter,
   Facebook,
-  Linkedin
+  Linkedin,
+  Heart
 } from "lucide-react";
 import AdBanner from "../components/ads/AdBanner";
+import { useAuth } from "../hooks/useAuth";
+import toast from "react-hot-toast";
 
 const BlogDetails = () => {
   const { slug } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isLiking, setIsLiking] = useState(false);
 
   const fetchPost = useCallback(async () => {
     try {
@@ -41,6 +47,48 @@ const BlogDetails = () => {
     window.scrollTo(0, 0);
   }, [fetchPost]);
 
+  const handleLike = async () => {
+    if (!user) {
+      toast.error("Please login to like this post.");
+      return navigate("/login");
+    }
+
+    if (isLiking) return;
+
+    let isMounted = true;
+    setIsLiking(true);
+    const hasLiked = post.likes?.includes(user.uid);
+
+    try {
+      if (hasLiked) {
+        await unlikePost(post.id, user.uid);
+        if (isMounted) {
+          setPost(prev => ({
+            ...prev,
+            likes: prev.likes.filter(id => id !== user.uid),
+            likeCount: Math.max(0, (prev.likeCount || 0) - 1)
+          }));
+        }
+      } else {
+        await likePost(post.id, user.uid);
+        if (isMounted) {
+          setPost(prev => ({
+            ...prev,
+            likes: [...(prev.likes || []), user.uid],
+            likeCount: (prev.likeCount || 0) + 1
+          }));
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        toast.error("Failed to update like.");
+      }
+    } finally {
+      if (isMounted) setIsLiking(false);
+    }
+    return () => { isMounted = false; };
+  };
+
   if (loading) return (
     <div className="container py-5 mt-5 text-center">
       <div className="spinner-border text-primary" role="status"></div>
@@ -55,7 +103,7 @@ const BlogDetails = () => {
     </div>
   );
 
-  const sanitizedContent = DOMPurify.sanitize(post.content);
+  const sanitizedContent = DOMPurify.sanitize(post.content || "");
   const formattedDate = post.createdAt?.seconds 
     ? format(post.createdAt.seconds * 1000, "MMMM dd, yyyy") 
     : "Recently Published";
@@ -74,22 +122,30 @@ const BlogDetails = () => {
       />
 
       {/* Header Image */}
-      <div className="position-relative mb-5" style={{ height: "500px" }}>
+      <div className="blog-hero position-relative mb-5">
         <img 
           src={post.coverImage || "https://via.placeholder.com/1600x900"} 
           className="w-100 h-100 object-fit-cover shadow-sm" 
           alt={post.title} 
         />
-        <div className="position-absolute bottom-0 start-0 w-100 p-4 p-md-5 bg-gradient-dark text-white">
+        <div className="position-absolute bottom-0 start-0 w-100 p-3 p-md-5 bg-gradient-dark text-white">
           <div className="container">
             <Link to={`/category/${post.category}`} className="badge bg-primary px-3 py-2 rounded-pill text-uppercase small fw-bold mb-3 text-decoration-none text-white">
               {post.category}
             </Link>
-            <h1 className="display-3 fw-bold display-font mb-4 lh-sm">{post.title}</h1>
-            <div className="d-flex align-items-center gap-4 small opacity-75">
+            <h1 className="blog-title fw-bold display-font mb-4 lh-sm">{post.title}</h1>
+            <div className="d-flex flex-wrap align-items-center gap-3 gap-md-4 small opacity-75">
               <div className="d-flex align-items-center"><Calendar size={16} className="me-2" /> {formattedDate}</div>
               <div className="d-flex align-items-center"><User size={16} className="me-2" /> By Admin</div>
               <div className="d-flex align-items-center"><MessageCircle size={16} className="me-2" /> 0 Comments</div>
+              <button 
+                onClick={handleLike}
+                className={`btn btn-sm rounded-pill px-3 d-flex align-items-center transition ${post.likes?.includes(user?.uid) ? "btn-danger" : "btn-outline-light"}`}
+                disabled={isLiking}
+              >
+                <Heart size={16} className={`me-2 ${post.likes?.includes(user?.uid) ? "fill-white" : ""}`} /> 
+                {post.likeCount || 0} Likes
+              </button>
             </div>
           </div>
         </div>
@@ -98,7 +154,7 @@ const BlogDetails = () => {
       <div className="container">
         <div className="row">
           <div className="col-lg-8">
-            <article className="bg-white p-4 p-md-5 rounded-4 shadow-sm mb-5">
+            <article className="bg-white p-3 p-md-5 rounded-4 shadow-sm mb-5">
               {/* Content */}
               <div 
                 className="blog-content lh-lg"
@@ -131,20 +187,19 @@ const BlogDetails = () => {
 
             {/* Author Box */}
             <div className="bg-light p-4 rounded-4 mb-5 border-start border-primary border-5 shadow-sm">
-              <div className="d-flex align-items-center gap-4">
-                <img src="https://via.placeholder.com/100" className="rounded-circle shadow-sm" width="80" height="80" alt="Admin" />
+              <div className="d-flex align-items-center gap-3 gap-md-4">
+                <img src="https://via.placeholder.com/100" className="rounded-circle shadow-sm author-img" width="80" height="80" alt="Admin" />
                 <div>
                   <h6 className="fw-bold mb-1">Written by Admin</h6>
                   <p className="text-muted small mb-0">
-                    A passionate writer and developer sharing thoughts on modern technology and lifestyle. 
-                    Follow for more insightful content.
+                    A passionate writer and developer sharing thoughts on modern technology and lifestyle.
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Navigation */}
-            <div className="d-flex justify-content-between">
+            <div className="d-flex justify-content-between mb-5 mb-lg-0">
               <Link to="/" className="btn btn-outline-dark rounded-pill px-4 d-flex align-items-center fw-bold transition hover-scale">
                 <ChevronLeft size={18} className="me-2" /> Back to Home
               </Link>
@@ -158,6 +213,8 @@ const BlogDetails = () => {
       </div>
 
       <style>{`
+        .blog-hero { height: 500px; }
+        .blog-title { font-size: 3.5rem; }
         .bg-gradient-dark { background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); }
         .blog-content { font-size: 1.15rem; color: #333; }
         .blog-content p { margin-bottom: 1.5rem; }
@@ -167,6 +224,13 @@ const BlogDetails = () => {
         .hover-scale:hover { transform: scale(1.02); }
         .transition { transition: all 0.3s ease; }
         .tracking-wider { letter-spacing: 0.1em; }
+
+        @media (max-width: 768px) {
+          .blog-hero { height: 350px; }
+          .blog-title { font-size: 2rem; }
+          .blog-content { font-size: 1.05rem; }
+          .author-img { width: 60px; height: 60px; }
+        }
       `}</style>
     </div>
   );

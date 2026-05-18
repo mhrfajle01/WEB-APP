@@ -1,9 +1,10 @@
-import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { loginWithGoogle } from "../services/authService";
-import { ShieldCheck, Zap, Globe } from "lucide-react";
+import { loginWithGoogle, loginWithEmail } from "../services/authService";
+import { Mail, Lock, ArrowRight, ShieldCheck, User as UserIcon } from "lucide-react";
 import SEOHead from "../components/common/SEOHead";
+import toast from "react-hot-toast";
 
 const Login = () => {
   const { user, loading } = useAuth();
@@ -11,73 +12,151 @@ const Login = () => {
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
 
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("user"); // "user" or "admin"
+
   useEffect(() => {
     if (user && !loading) {
       navigate(from, { replace: true });
     }
   }, [user, loading, navigate, from]);
 
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     try {
+      setAuthLoading(true);
       await loginWithGoogle();
+      toast.success("Welcome back!");
     } catch (error) {
-      console.error("Login failed", error);
+      toast.error("Google login failed.");
+      console.error(error);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    try {
+      await loginWithEmail(email, password);
+      toast.success(activeTab === "admin" ? "Admin logged in successfully!" : "Logged in successfully!");
+    } catch (error) {
+      toast.error(error.message || "Authentication failed.");
+      console.error(error);
+    } finally {
+      setAuthLoading(false);
     }
   };
 
   if (loading) return null;
 
   return (
-    <div className="container py-5 mt-5">
-      <SEOHead title="Login" description="Login to your account to manage your blog." />
+    <div className="container py-5 mt-4">
+      <SEOHead title={activeTab === "admin" ? "Admin Login" : "User Login"} description="Log in to your account." />
       <div className="row justify-content-center">
         <div className="col-md-5">
           <div className="card border-0 shadow-lg rounded-4 overflow-hidden">
-            <div className="bg-primary p-5 text-center text-white">
-              <h2 className="display-font fw-bold mb-0">Welcome Back</h2>
-              <p className="opacity-75 small">Log in to access your dashboard</p>
+            {/* Header */}
+            <div className={`p-5 text-center text-white position-relative transition ${activeTab === "admin" ? "bg-dark" : "bg-primary"}`}>
+              <h2 className="display-font fw-bold mb-0">
+                {activeTab === "admin" ? "Admin Panel" : "Welcome Back"}
+              </h2>
+              <p className="opacity-75 small">
+                {activeTab === "admin" ? "Secure administrative access" : "Log in to your account"}
+              </p>
+              <div className="position-absolute bottom-0 start-0 w-100 bg-white" style={{ height: "20px", borderRadius: "100% 100% 0 0" }}></div>
             </div>
-            <div className="card-body p-5">
-              <div className="mb-5">
-                <div className="d-flex align-items-center mb-3">
-                  <div className="bg-light p-2 rounded-3 me-3 text-primary"><ShieldCheck size={20} /></div>
-                  <div>
-                    <h6 className="mb-0 fw-bold">Secure Access</h6>
-                    <p className="text-muted small mb-0">Your data is protected by Firebase.</p>
-                  </div>
-                </div>
-                <div className="d-flex align-items-center mb-3">
-                  <div className="bg-light p-2 rounded-3 me-3 text-success"><Zap size={20} /></div>
-                  <div>
-                    <h6 className="mb-0 fw-bold">Fast Experience</h6>
-                    <p className="text-muted small mb-0">Optimized for speed and efficiency.</p>
-                  </div>
-                </div>
-                <div className="d-flex align-items-center">
-                  <div className="bg-light p-2 rounded-3 me-3 text-info"><Globe size={20} /></div>
-                  <div>
-                    <h6 className="mb-0 fw-bold">Global Content</h6>
-                    <p className="text-muted small mb-0">Reach readers across the world.</p>
-                  </div>
-                </div>
+
+            <div className="card-body p-5 pt-2">
+              {/* Tabs */}
+              <div className="d-flex mb-4 bg-light p-1 rounded-pill">
+                <button 
+                  className={`btn flex-grow-1 rounded-pill py-2 fw-bold transition ${activeTab === "user" ? "btn-primary shadow-sm" : "btn-link text-muted text-decoration-none"}`}
+                  onClick={() => setActiveTab("user")}
+                >
+                  <UserIcon size={16} className="me-2" /> User Login
+                </button>
+                <button 
+                  className={`btn flex-grow-1 rounded-pill py-2 fw-bold transition ${activeTab === "admin" ? "btn-dark shadow-sm" : "btn-link text-muted text-decoration-none"}`}
+                  onClick={() => setActiveTab("admin")}
+                >
+                  <ShieldCheck size={16} className="me-2" /> Admin Login
+                </button>
               </div>
 
-              <button 
-                className="btn btn-outline-dark w-100 py-3 rounded-pill d-flex align-items-center justify-content-center fw-bold transition"
-                onClick={handleLogin}
-              >
-                <img 
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
-                  alt="Google" 
-                  className="me-2" 
-                  width="20" 
-                />
-                Continue with Google
-              </button>
+              <form onSubmit={handleLogin} className="mb-4">
+                <div className="mb-3">
+                  <label className="form-label small fw-bold">Email Address</label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light border-0"><Mail size={18} className="text-muted" /></span>
+                    <input 
+                      type="email" 
+                      className="form-control bg-light border-0" 
+                      placeholder={activeTab === "admin" ? "admin@example.com" : "user@example.com"} 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required 
+                    />
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <label className="form-label small fw-bold">Password</label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-light border-0"><Lock size={18} className="text-muted" /></span>
+                    <input 
+                      type="password" 
+                      className="form-control bg-light border-0" 
+                      placeholder="••••••••" 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required 
+                    />
+                  </div>
+                </div>
+                <button 
+                  type="submit" 
+                  className={`btn w-100 py-3 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center transition ${activeTab === "admin" ? "btn-dark" : "btn-primary"}`}
+                  disabled={authLoading}
+                >
+                  {authLoading ? <span className="spinner-border spinner-border-sm me-2"></span> : "Log In"}
+                  {!authLoading && <ArrowRight size={18} className="ms-2" />}
+                </button>
+              </form>
+
+              {activeTab === "user" && (
+                <>
+                  <div className="position-relative mb-4 text-center">
+                    <hr className="opacity-10" />
+                    <span className="position-absolute top-50 start-50 translate-middle bg-white px-3 small text-muted">OR</span>
+                  </div>
+
+                  <button 
+                    className="btn btn-outline-dark w-100 py-3 rounded-pill d-flex align-items-center justify-content-center fw-bold transition mb-4"
+                    onClick={handleGoogleLogin}
+                    disabled={authLoading}
+                    type="button"
+                  >
+                    <img 
+                      src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+                      alt="Google" 
+                      className="me-2" 
+                      width="20" 
+                    />
+                    Continue with Google
+                  </button>
+                </>
+              )}
               
-              <p className="text-center text-muted small mt-4 mb-0">
-                By continuing, you agree to our Terms and Privacy Policy.
-              </p>
+              <div className="text-center">
+                <p className="text-muted small mb-0">
+                  Don't have an account?
+                  <Link to="/signup" className="btn btn-link text-primary p-0 ms-2 small fw-bold text-decoration-none">
+                    Sign up here
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
         </div>

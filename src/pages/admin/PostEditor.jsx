@@ -1,321 +1,191 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 import { 
   createPost, 
   updatePost
 } from "../../services/blogService";
 import { db } from "../../services/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
-import { uploadImage, deleteImage } from "../../services/storageService";
 import { slugify } from "../../utils/helpers";
-import { 
-  Save, 
-  X, 
-  Upload, 
-  Type, 
-  Link as LinkIcon, 
-  Image as ImageIcon,
-  Tag,
-  FolderOpen
-} from "lucide-react";
+import toast from "react-hot-toast";
+
+const initialFormData = {
+  title: "",
+  slug: "",
+  content: "",
+  category: "tech",
+  tags: "",
+  coverImage: "",
+  status: "draft"
+};
 
 const PostEditor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
   
-  const [formData, setFormData] = useState({
-    title: "",
-    slug: "",
-    content: "",
-    category: "tech",
-    tags: "",
-    coverImage: "",
-    coverImagePath: "",
-    metaDescription: ""
-  });
-
-  const [imageFile, setImageFile] = useState(null);
+  const [formData, setFormData] = useState(initialFormData);
   const [imagePreview, setImagePreview] = useState("");
 
-  const fetchPost = useCallback(async () => {
+
+  const fetchPost = useCallback(async (postId) => {
+    let isMounted = true;
     try {
-      const docRef = doc(db, "posts", id);
+      setFetching(true);
+      const docRef = doc(db, "posts", postId);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
+      if (docSnap.exists() && isMounted) {
         const data = docSnap.data();
         setFormData({
+          ...initialFormData,
           ...data,
-          tags: data.tags?.join(", ") || ""
+          tags: Array.isArray(data.tags) ? data.tags.join(", ") : (data.tags || ""),
+          content: data.content || "",
+          status: data.status || "draft"
         });
-        setImagePreview(data.coverImage);
-      } else {
-        alert("Post not found");
+        setImagePreview(data.coverImage || "");
+      } else if (isMounted) {
+        toast.error("Post not found");
         navigate("/admin/posts");
       }
     } catch (error) {
-      console.error("Error fetching post:", error);
+      if (error.name !== 'AbortError' && isMounted) {
+        console.error("Error fetching post:", error);
+        toast.error("Failed to load post.");
+      }
     } finally {
-      setFetching(false);
+      if (isMounted) setFetching(false);
     }
-  }, [id, navigate]);
+    return () => { isMounted = false; };
+  }, [navigate]);
 
   useEffect(() => {
-    const init = async () => {
-      if (id) {
-        await fetchPost();
-      }
-    };
-    init();
+    let cleanup;
+    if (id) {
+      cleanup = fetchPost(id); // eslint-disable-line react-hooks/set-state-in-effect
+    } else {
+      setFormData(initialFormData);
+      setImagePreview("");
+      setFetching(false);
+    }
+    return () => { if (typeof cleanup === 'function') cleanup(); };
   }, [id, fetchPost]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    if (name === "title" && !id) {
-      setFormData(prev => ({ ...prev, slug: slugify(value) }));
-    }
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      if (name === "title" && !id) {
+        next.slug = slugify(value);
+      }
+      return next;
+    });
   };
 
   const handleContentChange = (content) => {
-    setFormData(prev => ({ ...prev, content }));
+    setFormData(prev => ({ ...prev, content: content || "" }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
+  const handleImageURLChange = (e) => {
+    const url = e.target.value;
+    setFormData(prev => ({ ...prev, coverImage: url }));
+    setImagePreview(url);
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    if (e) e.preventDefault();
+    
+    if (!formData.title?.trim() || !formData.content?.trim()) {
+      return toast.error("Title and content are required!");
+    }
+    
+    const loadingToast = toast.loading(id ? "Updating post..." : "Publishing post...");
 
     try {
-      let coverImage = formData.coverImage;
-      let coverImagePath = formData.coverImagePath;
-
-      // Upload new image if selected
-      if (imageFile) {
-        // Delete old image if it exists
-        if (coverImagePath) {
-          try { await deleteImage(coverImagePath); } catch (err) { console.warn("Failed to delete old image", err); }
-        }
-        const uploadResult = await uploadImage(imageFile);
-        coverImage = uploadResult.url;
-        coverImagePath = uploadResult.path;
-      }
+      const tagsArray = String(formData.tags || "")
+        .split(",")
+        .map(tag => tag.trim())
+        .filter(tag => tag !== "");
 
       const postData = {
         ...formData,
-        tags: formData.tags.split(",").map(tag => tag.trim()).filter(tag => tag !== ""),
-        coverImage,
-        coverImagePath
+        tags: tagsArray,
+        updatedAt: new Date()
       };
 
       if (id) {
         await updatePost(id, postData);
+        toast.success("Post updated successfully!", { id: loadingToast });
       } else {
         await createPost(postData);
+        toast.success("Post published successfully!", { id: loadingToast });
       }
 
       navigate("/admin/posts");
     } catch (error) {
       console.error("Error saving post:", error);
-      alert("Error saving post. Check console for details.");
-    } finally {
-      setLoading(false);
+      toast.error("Error saving post: " + (error.message || "Unknown error"), { id: loadingToast });
     }
   };
 
-  if (fetching) return <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>;
+  if (fetching) return (
+    <div className="d-flex justify-content-center align-items-center py-5">
+      <div className="spinner-border text-primary" role="status"></div>
+    </div>
+  );
 
   return (
-    <div className="pb-5">
-      <div className="d-flex justify-content-between align-items-center mb-5">
-        <div>
-          <h2 className="fw-bold mb-1">{id ? "Edit Post" : "Create New Post"}</h2>
-          <p className="text-muted small mb-0">Fill in the details below to {id ? "update" : "publish"} your post.</p>
-        </div>
-        <div className="d-flex gap-2">
-          <button onClick={() => navigate("/admin/posts")} className="btn btn-light rounded-3 px-4">
-            <X size={18} className="me-2" /> Cancel
-          </button>
-          <button 
-            onClick={handleSubmit} 
-            disabled={loading} 
-            className="btn btn-primary rounded-3 px-4 shadow-sm"
-          >
-            {loading ? <span className="spinner-border spinner-border-sm me-2"></span> : <Save size={18} className="me-2" />}
-            {id ? "Update Post" : "Publish Post"}
-          </button>
-        </div>
+    <div className="container py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h4 className="fw-bold">{id ? "Edit Article" : "New Article"}</h4>
+        <button onClick={handleSubmit} className="btn btn-primary px-4 rounded-3 shadow-sm">
+          {id ? "Update" : "Publish"}
+        </button>
       </div>
 
       <div className="row g-4">
         <div className="col-lg-8">
-          <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
-            <div className="mb-4">
-              <label className="form-label fw-bold small text-uppercase tracking-wider">Title</label>
-              <div className="input-group">
-                <span className="input-group-text bg-light border-0"><Type size={18} className="text-muted" /></span>
-                <input 
-                  type="text" 
-                  name="title" 
-                  className="form-control bg-light border-0 py-2" 
-                  placeholder="Enter a catchy title..." 
-                  value={formData.title}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="form-label fw-bold small text-uppercase tracking-wider">Slug (URL)</label>
-              <div className="input-group">
-                <span className="input-group-text bg-light border-0"><LinkIcon size={18} className="text-muted" /></span>
-                <input 
-                  type="text" 
-                  name="slug" 
-                  className="form-control bg-light border-0 py-2" 
-                  placeholder="post-url-slug" 
-                  value={formData.slug}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="mb-0">
-              <label className="form-label fw-bold small text-uppercase tracking-wider">Content</label>
-              <div style={{ height: "400px", marginBottom: "50px" }}>
-                <ReactQuill 
-                  theme="snow" 
-                  value={formData.content} 
-                  onChange={handleContentChange}
-                  style={{ height: "350px" }}
-                  modules={{
-                    toolbar: [
-                      [{ 'header': [1, 2, 3, false] }],
-                      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-                      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                      ['link', 'image', 'code-block'],
-                      ['clean']
-                    ],
-                  }}
-                />
-              </div>
+          <div className="card border-0 shadow-sm p-4 rounded-4 mb-4">
+            <input 
+              type="text" name="title" className="h1 border-0 w-100 mb-3" 
+              placeholder="Article Title" value={formData.title} onChange={handleChange} 
+            />
+            <div className="quill-wrapper">
+              <ReactQuill theme="snow" value={formData.content} onChange={handleContentChange} placeholder="Write your story here..." />
             </div>
           </div>
         </div>
 
         <div className="col-lg-4">
-          <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
-            <h6 className="fw-bold mb-4">Organization & SEO</h6>
-            
-            <div className="mb-4">
-              <label className="form-label fw-bold small text-uppercase tracking-wider">Category</label>
-              <div className="input-group">
-                <span className="input-group-text bg-light border-0"><FolderOpen size={18} className="text-muted" /></span>
-                <select 
-                  name="category" 
-                  className="form-select bg-light border-0" 
-                  value={formData.category}
-                  onChange={handleChange}
-                >
-                  <option value="tech">Technology</option>
-                  <option value="lifestyle">Lifestyle</option>
-                  <option value="business">Business</option>
-                  <option value="travel">Travel</option>
-                </select>
-              </div>
+          <div className="card border-0 shadow-sm p-4 rounded-4 mb-4">
+            <h6 className="fw-bold mb-3 text-primary">Metadata</h6>
+            <div className="mb-3">
+              <label className="form-label small fw-bold text-muted">Cover Image URL</label>
+              <input type="text" name="coverImage" className="form-control" placeholder="https://..." value={formData.coverImage} onChange={handleImageURLChange} />
+              {imagePreview && <img src={imagePreview} className="img-fluid mt-2 rounded-3" alt="Preview" />}
             </div>
-
-            <div className="mb-4">
-              <label className="form-label fw-bold small text-uppercase tracking-wider">Tags (comma separated)</label>
-              <div className="input-group">
-                <span className="input-group-text bg-light border-0"><Tag size={18} className="text-muted" /></span>
-                <input 
-                  type="text" 
-                  name="tags" 
-                  className="form-control bg-light border-0" 
-                  placeholder="react, webdev, tutorial" 
-                  value={formData.tags}
-                  onChange={handleChange}
-                />
-              </div>
+            <div className="mb-3">
+              <label className="form-label small fw-bold text-muted">Category</label>
+              <select className="form-select" name="category" value={formData.category} onChange={handleChange}>
+                <option value="tech">Technology</option>
+                <option value="lifestyle">Lifestyle</option>
+                <option value="business">Business</option>
+              </select>
             </div>
-
-            <div className="mb-0">
-              <label className="form-label fw-bold small text-uppercase tracking-wider">Meta Description</label>
-              <textarea 
-                name="metaDescription" 
-                className="form-control bg-light border-0" 
-                rows="4" 
-                placeholder="Brief summary for search engines..."
-                value={formData.metaDescription}
-                onChange={handleChange}
-              ></textarea>
-            </div>
-          </div>
-
-          <div className="card border-0 shadow-sm rounded-4 p-4">
-            <h6 className="fw-bold mb-4">Cover Image</h6>
-            <div className="text-center">
-              {imagePreview ? (
-                <div className="position-relative mb-3">
-                  <img src={imagePreview} alt="Preview" className="img-fluid rounded-3 shadow-sm" style={{ maxHeight: "200px" }} />
-                  <button 
-                    type="button" 
-                    className="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle shadow"
-                    onClick={() => { setImageFile(null); setImagePreview(""); }}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div 
-                  className="border border-2 border-dashed rounded-4 py-5 mb-3 bg-light cursor-pointer hover-bg-white transition"
-                  onClick={() => document.getElementById("coverImage").click()}
-                >
-                  <ImageIcon size={40} className="text-muted mb-2 opacity-50" />
-                  <p className="text-muted small mb-0">Click to upload cover image</p>
-                </div>
-              )}
-              <input 
-                type="file" 
-                id="coverImage" 
-                className="d-none" 
-                accept="image/*" 
-                onChange={handleImageChange} 
-              />
-              <button 
-                type="button" 
-                className="btn btn-outline-primary btn-sm rounded-pill px-4"
-                onClick={() => document.getElementById("coverImage").click()}
-              >
-                <Upload size={14} className="me-2" /> {imagePreview ? "Change Image" : "Upload Image"}
-              </button>
+            <div className="mb-3">
+              <label className="form-label small fw-bold text-muted">Status</label>
+              <select className="form-select" name="status" value={formData.status} onChange={handleChange}>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+              </select>
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        .cursor-pointer { cursor: pointer; }
-        .hover-bg-white:hover { background-color: #fff !important; }
-        .tracking-wider { letter-spacing: 0.05em; }
-        .ql-container { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
-        .ql-toolbar { border-top-left-radius: 12px; border-top-right-radius: 12px; border-color: #f8f9fa !important; background-color: #f8f9fa; }
-        .ql-container { border-color: #f8f9fa !important; }
-      `}</style>
+      <style>{`.quill-wrapper .ql-container { min-height: 300px; font-size: 1.1rem; }`}</style>
     </div>
   );
 };
