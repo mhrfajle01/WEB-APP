@@ -13,8 +13,8 @@ const CategoryPage = () => {
 
   const fetchPosts = useCallback(async () => {
     try {
-      const data = await getPosts(category, 20);
-      setPosts(data);
+      const result = await getPosts(category, 20);
+      setPosts(result.posts);
     } catch (error) {
       console.error("Failed to fetch posts", error);
     } finally {

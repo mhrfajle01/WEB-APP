@@ -11,24 +11,46 @@ import { ChevronDown } from "lucide-react";
 const Home = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
 
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = useCallback(async (isLoadMore = false) => {
     try {
-      const data = await getPosts(null, 10);
-      setPosts(data);
+      if (isLoadMore) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      const result = await getPosts(null, 6, isLoadMore ? lastVisible : null);
+      
+      if (isLoadMore) {
+        setPosts(prev => [...prev, ...result.posts]);
+      } else {
+        setPosts(result.posts);
+      }
+
+      setLastVisible(result.lastVisible);
+      setHasMore(result.posts.length === 6);
+
     } catch (error) {
       console.error("Failed to fetch posts", error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [lastVisible]);
 
   useEffect(() => {
-    const init = async () => {
-      await fetchPosts();
-    };
-    init();
-  }, [fetchPosts]);
+    fetchPosts();
+  }, []); // Initial load only
+
+  const handleLoadMore = () => {
+    if (hasMore && !loadingMore) {
+      fetchPosts(true);
+    }
+  };
 
   return (
     <div>
@@ -74,11 +96,26 @@ const Home = () => {
                       </Fragment>
                     ))}
                     
-                    <div className="text-center mt-5">
-                      <button className="btn btn-outline-primary rounded-pill px-5 py-2 fw-bold d-flex align-items-center mx-auto transition hover-scale">
-                        Load More Posts <ChevronDown size={18} className="ms-2" />
-                      </button>
-                    </div>
+                    {hasMore && (
+                      <div className="text-center mt-5">
+                        <button 
+                          onClick={handleLoadMore}
+                          disabled={loadingMore}
+                          className="btn btn-outline-primary rounded-pill px-5 py-2 fw-bold d-flex align-items-center mx-auto transition hover-scale"
+                        >
+                          {loadingMore ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              Load More Posts <ChevronDown size={18} className="ms-2" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-center py-5 card border-0 shadow-sm rounded-4">

@@ -1,24 +1,41 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'mhfajle136@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    // Settings Collection Rules
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Users Collection Rules
     match /users/{userId} {
       // Allow users to read/write their own document
-      allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'mhfajle136@gmail.com');
-      // Allow admin to read all
-      allow list: if request.auth != null && request.auth.token.email == 'mhfajle136@gmail.com';
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      // Allow admin to list all users
+      allow list: if isAdmin();
     }
 
     // Post Collection Rules
     match /posts/{postId} {
-      allow read: if resource.data.status == 'published';
-      allow read, write: if request.auth != null && request.auth.token.email == 'mhfajle136@gmail.com';
+      // Allow everyone to read all posts
+      allow read: if true;
+      // Admin can do anything (create, update, delete)
+      allow write: if isAdmin();
     }
     
     // Default fallback
     match /{document=**} {
       allow read: if true; 
-      allow write: if request.auth != null && request.auth.token.email == 'mhfajle136@gmail.com';
+      allow write: if isAdmin();
     }
   }
 }

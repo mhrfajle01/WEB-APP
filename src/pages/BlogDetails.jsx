@@ -14,16 +14,18 @@ import {
   Twitter,
   Facebook,
   Linkedin,
-  Heart
+  Heart,
+  Edit3
 } from "lucide-react";
 import AdBanner from "../components/ads/AdBanner";
+import ReadingProgressBar from "../components/common/ReadingProgressBar";
 import { useAuth } from "../hooks/useAuth";
 import toast from "react-hot-toast";
 
 const BlogDetails = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isLiking, setIsLiking] = useState(false);
@@ -113,6 +115,7 @@ const BlogDetails = () => {
 
   return (
     <div className="pb-5">
+      <ReadingProgressBar />
       <SEOHead 
         title={post.title} 
         description={post.metaDescription} 
@@ -120,6 +123,27 @@ const BlogDetails = () => {
         slug={`blog/${post.slug}`} 
         article={true} 
       />
+
+      {/* Admin Quick Edit Button */}
+      {isAdmin && (
+        <Link 
+          to={`/admin/edit/${post.id}`}
+          className="btn btn-primary rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center p-0"
+          style={{ 
+            bottom: '30px', 
+            right: '30px', 
+            width: '60px', 
+            height: '60px', 
+            zIndex: 1050,
+            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          title="Edit this post"
+        >
+          <Edit3 size={24} />
+        </Link>
+      )}
 
       {/* Header Image */}
       <div className="blog-hero position-relative mb-5">

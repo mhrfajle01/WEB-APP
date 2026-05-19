@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { 
   getPosts, 
@@ -29,26 +29,27 @@ const PostList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const isMounted = useRef(true);
+
   const fetchPosts = useCallback(async () => {
-    let isMounted = true;
     try {
       setLoading(true);
-      const data = await getPosts(null, 100, true);
-      if (isMounted) setPosts(data);
+      const result = await getPosts(null, 100, null, true);
+      if (isMounted.current) setPosts(result.posts);
     } catch (err) {
-      if (err.name !== 'AbortError' && isMounted) {
+      if (isMounted.current) {
         console.error("Failed to fetch posts", err);
         toast.error("Failed to load posts.");
       }
     } finally {
-      if (isMounted) setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
-    return () => { isMounted = false; };
   }, []);
 
   useEffect(() => {
-    const cleanup = fetchPosts(); // eslint-disable-line react-hooks/set-state-in-effect
-    return () => { if (typeof cleanup === 'function') cleanup(); };
+    isMounted.current = true;
+    fetchPosts();
+    return () => { isMounted.current = false; };
   }, [fetchPosts]);
 
   const handleSeed = async () => {

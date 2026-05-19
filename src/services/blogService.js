@@ -9,7 +9,12 @@ import {
   query, 
   where, 
   orderBy, 
-  limit 
+  limit,
+  arrayUnion,
+  arrayRemove,
+  increment,
+  startAfter,
+  Timestamp
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
@@ -23,10 +28,10 @@ export const createPost = async (postData) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
       ...postData,
-      likes: postData.likes || [],
-      likeCount: postData.likeCount || 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      likes: [],
+      likeCount: 0,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
     });
     return docRef.id;
   } catch (error) {
@@ -35,76 +40,95 @@ export const createPost = async (postData) => {
   }
 };
 
-export const getPosts = async (category = null, limitCount = 50, includeDrafts = false) => {
+export const getPosts = async (category = null, limitCount = 10, lastVisible = null, includeDrafts = true) => {
   try {
     const postsCol = collection(db, COLLECTION_NAME);
     let q;
 
-    if (category) {
-      q = query(postsCol, where("category", "==", category), limit(100));
-    } else {
-      q = query(postsCol, orderBy("createdAt", "desc"), limit(100));
-    }
-    
-    const querySnapshot = await getDocs(q);
-    let posts = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return { 
-        id: doc.id, 
-        ...data,
-        createdAt: data.createdAt || { seconds: Date.now() / 1000 }
-      };
-    });
+    // Base constraints: order by createdAt descending
+    let constraints = [orderBy("createdAt", "desc"), limit(limitCount)];
 
+    // If we only want published posts, add that filter
     if (!includeDrafts) {
-      posts = posts.filter(p => p.status === "published");
+      constraints.push(where("status", "==", "published"));
     }
 
+    // If category is specified, add that filter
     if (category) {
-      posts = posts.filter(p => p.category === category);
+      constraints.push(where("category", "==", category));
     }
 
-    posts.sort((a, b) => {
-      const dateA = a.createdAt?.seconds || 0;
-      const dateB = b.createdAt?.seconds || 0;
-      return dateB - dateA;
-    });
+    // Pagination
+    if (lastVisible) {
+      constraints.push(startAfter(lastVisible));
+    }
 
-    return posts.slice(0, limitCount);
-
-  } catch (error) {
-    if (error.name === 'AbortError') return [];
-    
-    console.error("Data fetch failed:", error.code, error.message);
     try {
-      const snapshot = await getDocs(collection(db, COLLECTION_NAME));
-      let allPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      q = query(postsCol, ...constraints);
+      const querySnapshot = await getDocs(q);
       
-      if (!includeDrafts) allPosts = allPosts.filter(p => p.status === "published");
-      if (category) allPosts = allPosts.filter(p => p.category === category);
+      const posts = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return { 
+          id: doc.id, 
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date())
+        };
+      });
+
+      return {
+        posts,
+        lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] || null
+      };
+    } catch (queryError) {
+      console.warn("Primary query failed, falling back to simplified fetch:", queryError.message);
       
-      return allPosts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).slice(0, limitCount);
-    } catch (fallbackError) {
-      if (fallbackError.name === 'AbortError') return [];
-      throw error;
+      // Fallback: Fetch everything and filter in memory if the primary query fails (likely index issue)
+      const fallbackSnapshot = await getDocs(collection(db, COLLECTION_NAME));
+      let allPosts = fallbackSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return { 
+          id: doc.id, 
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date())
+        };
+      });
+
+      // Filter by drafts
+      if (!includeDrafts) {
+        allPosts = allPosts.filter(p => p.status === "published");
+      }
+
+      // Filter by category
+      if (category) {
+        allPosts = allPosts.filter(p => p.category === category);
+      }
+
+      // Sort manually
+      allPosts.sort((a, b) => {
+        const dateA = a.createdAt?.getTime ? a.createdAt.getTime() : 0;
+        const dateB = b.createdAt?.getTime ? b.createdAt.getTime() : 0;
+        return dateB - dateA;
+      });
+
+      return {
+        posts: allPosts.slice(0, limitCount),
+        lastVisible: null
+      };
     }
+  } catch (error) {
+    console.error("Critical failure in getPosts:", error);
+    return { posts: [], lastVisible: null };
   }
 };
 
 export const likePost = async (postId, userId) => {
   try {
     const docRef = doc(db, COLLECTION_NAME, postId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const likes = data.likes || [];
-      if (!likes.includes(userId)) {
-        await updateDoc(docRef, {
-          likes: [...likes, userId],
-          likeCount: (data.likeCount || 0) + 1
-        });
-      }
-    }
+    await updateDoc(docRef, {
+      likes: arrayUnion(userId),
+      likeCount: increment(1)
+    });
   } catch (error) {
     console.error("Firestore operation failed:", error.code, error.message, error);
     throw error;
@@ -114,17 +138,10 @@ export const likePost = async (postId, userId) => {
 export const unlikePost = async (postId, userId) => {
   try {
     const docRef = doc(db, COLLECTION_NAME, postId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const likes = data.likes || [];
-      if (likes.includes(userId)) {
-        await updateDoc(docRef, {
-          likes: likes.filter(id => id !== userId),
-          likeCount: Math.max(0, (data.likeCount || 0) - 1)
-        });
-      }
-    }
+    await updateDoc(docRef, {
+      likes: arrayRemove(userId),
+      likeCount: increment(-1)
+    });
   } catch (error) {
     console.error("Firestore operation failed:", error.code, error.message, error);
     throw error;

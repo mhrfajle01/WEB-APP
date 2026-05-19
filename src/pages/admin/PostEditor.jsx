@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
@@ -30,14 +30,14 @@ const PostEditor = () => {
   const [formData, setFormData] = useState(initialFormData);
   const [imagePreview, setImagePreview] = useState("");
 
+  const isMounted = useRef(true);
 
   const fetchPost = useCallback(async (postId) => {
-    let isMounted = true;
     try {
       setFetching(true);
       const docRef = doc(db, "posts", postId);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && isMounted) {
+      if (docSnap.exists() && isMounted.current) {
         const data = docSnap.data();
         setFormData({
           ...initialFormData,
@@ -47,31 +47,30 @@ const PostEditor = () => {
           status: data.status || "draft"
         });
         setImagePreview(data.coverImage || "");
-      } else if (isMounted) {
+      } else if (isMounted.current) {
         toast.error("Post not found");
         navigate("/admin/posts");
       }
     } catch (error) {
-      if (error.name !== 'AbortError' && isMounted) {
+      if (isMounted.current) {
         console.error("Error fetching post:", error);
         toast.error("Failed to load post.");
       }
     } finally {
-      if (isMounted) setFetching(false);
+      if (isMounted.current) setFetching(false);
     }
-    return () => { isMounted = false; };
   }, [navigate]);
 
   useEffect(() => {
-    let cleanup;
+    isMounted.current = true;
     if (id) {
-      cleanup = fetchPost(id); // eslint-disable-line react-hooks/set-state-in-effect
+      fetchPost(id);
     } else {
       setFormData(initialFormData);
       setImagePreview("");
       setFetching(false);
     }
-    return () => { if (typeof cleanup === 'function') cleanup(); };
+    return () => { isMounted.current = false; };
   }, [id, fetchPost]);
 
   const handleChange = (e) => {

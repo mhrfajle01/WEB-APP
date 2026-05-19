@@ -11,22 +11,33 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserRole = async (firebaseUser) => {
     if (!firebaseUser) return false;
+    
+    // Check environment variable for admin email
+    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'mhfajle136@gmail.com';
+    if (firebaseUser.email === adminEmail) {
+      console.log("User identified as admin via email:", firebaseUser.email);
+      return true;
+    }
+
     try {
       const userRef = doc(db, "users", firebaseUser.uid);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const userData = userSnap.data();
-        return userData.role === 'admin';
+        const isUserAdmin = userData.role === 'admin';
+        if (isUserAdmin) console.log("User identified as admin via Firestore role.");
+        return isUserAdmin;
       }
       return false;
     } catch (error) {
-      console.error("Error fetching user role:", error);
+      console.error("Error fetching user role from Firestore:", error);
       return false;
     }
   };
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges(async (currentUser) => {
+      console.log("Auth state changed:", currentUser ? currentUser.email : "No user");
       setUser(currentUser);
       if (currentUser) {
         const isUserAdmin = await fetchUserRole(currentUser);
