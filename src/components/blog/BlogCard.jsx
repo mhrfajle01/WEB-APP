@@ -56,6 +56,9 @@ const BlogCard = ({ post }) => {
           font-family: 'Hind Siliguri', 'SolaimanLipi', sans-serif;
           font-size: 0.95rem;
           line-height: 1.6;
+          overflow-wrap: break-word;
+          word-break: normal;
+          line-break: strict;
         }
       `}</style>
     </div>

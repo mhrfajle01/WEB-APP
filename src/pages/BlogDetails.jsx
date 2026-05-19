@@ -255,8 +255,10 @@ const BlogDetails = () => {
           font-size: 1.25rem; 
           line-height: 1.8; 
           color: #2c3e50;
-          text-align: left; /* Fixed: No more justification gaps */
-          word-wrap: break-word;
+          text-align: left; 
+          overflow-wrap: break-word; /* Modern property for wrapping long links */
+          word-break: normal; /* Critical for Bengali: prevents splitting syllables */
+          line-break: strict; /* Keeps complex clusters together */
           word-spacing: 0;
           letter-spacing: 0;
         }
