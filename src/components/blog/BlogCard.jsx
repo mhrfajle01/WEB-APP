@@ -35,12 +35,20 @@ const BlogCard = ({ post }) => {
           </Link>
         </h4>
         <p className="card-text text-muted small lh-lg mb-4 summary-text-traditional">
-          {post.metaDescription || (post.content ? post.content
-            .replace(/<[^>]*>/g, ' ') // Strip HTML tags with space
-            .replace(/&nbsp;/g, ' ')  // Replace nbsp with real space
-            .replace(/\s+/g, ' ')     // Collapse multiple spaces
-            .trim()
-            .substring(0, 150) + "..." : "")}
+          {post.metaDescription || (post.content ? (() => {
+            const plainText = post.content
+              .replace(/<[^>]*>/g, ' ') 
+              .replace(/&nbsp;/g, ' ')  
+              .replace(/\s+/g, ' ')     
+              .trim();
+            
+            if (plainText.length <= 150) return plainText;
+            
+            // Genius Truncation: Never cut a word or a Bengali cluster
+            // We find the last space BEFORE the limit.
+            const lastSpace = plainText.lastIndexOf(' ', 150);
+            return (lastSpace > 50 ? plainText.substring(0, lastSpace) : plainText.substring(0, 150)) + "...";
+          })() : "")}
         </p>
         <Link to={`/blog/${post.slug || post.id}`} className="btn btn-link text-primary p-0 text-decoration-none fw-bold small d-flex align-items-center">
           Read More <ArrowRight size={16} className="ms-2" />
@@ -56,9 +64,10 @@ const BlogCard = ({ post }) => {
           font-family: 'Hind Siliguri', 'SolaimanLipi', sans-serif;
           font-size: 0.95rem;
           line-height: 1.6;
+          word-break: keep-all; 
           overflow-wrap: break-word;
-          word-break: normal;
-          line-break: strict;
+          line-break: after-white-space; /* Prevents breaking inside clusters */
+          text-rendering: optimizeLegibility;
         }
       `}</style>
     </div>

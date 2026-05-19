@@ -105,7 +105,9 @@ const BlogDetails = () => {
     </div>
   );
 
-  const sanitizedContent = DOMPurify.sanitize(post.content || "");
+  const sanitizedContent = DOMPurify.sanitize(post.content || "")
+    .replace(/&nbsp;/g, ' '); // Replace nbsp with real spaces for natural wrapping
+
   const formattedDate = post.createdAt instanceof Date 
     ? format(post.createdAt, "MMMM dd, yyyy") 
     : (post.createdAt?.seconds 
@@ -256,22 +258,20 @@ const BlogDetails = () => {
           line-height: 1.8; 
           color: #2c3e50;
           text-align: left; 
-          word-break: keep-all; 
-          overflow-wrap: normal; /* Prevents breaking within words */
-          hyphens: none;
-          -webkit-hyphens: none;
-          line-break: strict;
+          word-break: normal; 
+          overflow-wrap: anywhere; /* Modern: breaks safely and prevents overflow */
           text-rendering: optimizeLegibility; 
           -webkit-font-smoothing: antialiased;
         }
 
-        /* Allow only links and code to wrap/break if too long */
+        /* Allow links and code to wrap/break */
         .blog-content-traditional a, 
         .blog-content-traditional code,
         .blog-content-traditional pre {
           overflow-wrap: break-word;
           word-break: break-all;
         }
+
         
         .blog-content-traditional p { 
           margin-bottom: 1.8rem;
