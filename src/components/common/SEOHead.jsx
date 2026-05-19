@@ -12,7 +12,7 @@ const SEOHead = ({
   const fullTitle = title ? `${title} | ${siteTitle}` : siteTitle;
   const siteDescription = description || "A modern, fast, and SEO-optimized blogging platform.";
   const siteUrl = window.location.origin;
-  const fullUrl = `${siteUrl}${slug ? `/${slug}` : ""}`;
+  const fullUrl = `${siteUrl}${slug ? `/${encodeURI(slug)}` : ""}`;
   const ogImage = image || `${siteUrl}/favicon.svg`;
 
   return (

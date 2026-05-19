@@ -150,16 +150,81 @@ export const unlikePost = async (postId, userId) => {
 
 export const getPostBySlug = async (slug) => {
   try {
-    const q = query(collection(db, COLLECTION_NAME), where("slug", "==", slug));
+    const decodedSlug = decodeURIComponent(slug);
+    const postsCol = collection(db, COLLECTION_NAME);
+    
+    // Try querying with both original and decoded slug for maximum compatibility
+    const q = query(postsCol, where("slug", "in", [slug, decodedSlug]));
     const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) return null;
-    const doc = querySnapshot.docs[0];
-    return { id: doc.id, ...doc.data() };
+    
+    if (querySnapshot.empty) {
+      // Fallback: Try searching by ID
+      try {
+        const docRef = doc(db, COLLECTION_NAME, slug);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          return { 
+            id: docSnap.id, 
+            ...data,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date())
+          };
+        }
+      } catch (e) { /* ignore */ }
+
+      // Final Fallback: In-memory scan (critical for Unicode/Index issues)
+      const allDocs = await getDocs(postsCol);
+      const match = allDocs.docs.find(d => {
+        const s = d.data().slug;
+        return s === slug || s === decodedSlug;
+      });
+      
+      if (match) {
+        const data = match.data();
+        return { 
+          id: match.id, 
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date())
+        };
+      }
+      return null;
+    }
+
+    const docResult = querySnapshot.docs[0];
+    const data = docResult.data();
+    return { 
+      id: docResult.id, 
+      ...data,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date())
+    };
   } catch (error) {
-    console.error("Firestore operation failed:", error.code, error.message, error);
+    console.error("Firestore operation failed in getPostBySlug:", error.code, error.message, error);
+    
+    // In-memory fallback on error
+    try {
+      const decodedSlug = decodeURIComponent(slug);
+      const allDocs = await getDocs(collection(db, COLLECTION_NAME));
+      const match = allDocs.docs.find(d => {
+        const s = d.data().slug;
+        return s === slug || s === decodedSlug;
+      });
+      if (match) {
+        const data = match.data();
+        return { 
+          id: match.id, 
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date())
+        };
+      }
+    } catch (fallbackError) {
+      console.error("In-memory fallback also failed:", fallbackError);
+    }
+    
     throw error;
   }
 };
+
+
 
 export const updatePost = async (id, postData) => {
   if (!id) throw new Error("Post ID is required for update.");

@@ -30,22 +30,33 @@ const BlogCard = ({ post }) => {
           <div className="d-flex align-items-center"><User size={14} className="me-1" /> Admin</div>
         </div>
         <h4 className="card-title fw-bold mb-3 display-font">
-          <Link to={`/blog/${post.slug}`} className="text-dark text-decoration-none hover-primary transition">
+          <Link to={`/blog/${post.slug || post.id}`} className="text-dark text-decoration-none hover-primary transition">
             {post.title}
           </Link>
         </h4>
-        <p className="card-text text-muted small lh-lg mb-4">
-          {post.metaDescription || (post.content ? post.content.replace(/<[^>]*>/g, '').substring(0, 120) + "..." : "")}
+        <p className="card-text text-muted small lh-lg mb-4 summary-text-traditional">
+          {post.metaDescription || (post.content ? post.content
+            .replace(/<[^>]*>/g, ' ') // Strip HTML tags with space
+            .replace(/&nbsp;/g, ' ')  // Replace nbsp with real space
+            .replace(/\s+/g, ' ')     // Collapse multiple spaces
+            .trim()
+            .substring(0, 150) + "..." : "")}
         </p>
-        <Link to={`/blog/${post.slug}`} className="btn btn-link text-primary p-0 text-decoration-none fw-bold small d-flex align-items-center">
+        <Link to={`/blog/${post.slug || post.id}`} className="btn btn-link text-primary p-0 text-decoration-none fw-bold small d-flex align-items-center">
           Read More <ArrowRight size={16} className="ms-2" />
         </Link>
       </div>
       
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
         .hover-translate-y:hover { transform: translateY(-8px); }
         .transition-transform { transition: transform 0.3s ease; }
         .hover-primary:hover { color: var(--bs-primary) !important; }
+        .summary-text-traditional { 
+          font-family: 'Hind Siliguri', 'SolaimanLipi', sans-serif;
+          font-size: 0.95rem;
+          line-height: 1.6;
+        }
       `}</style>
     </div>
   );

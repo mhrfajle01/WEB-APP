@@ -9,13 +9,13 @@ import {
   Calendar, 
   User, 
   Tag, 
-  MessageCircle,
   ChevronLeft,
   Twitter,
   Facebook,
   Linkedin,
   Heart,
-  Edit3
+  Edit3,
+  MessageCircle
 } from "lucide-react";
 import AdBanner from "../components/ads/AdBanner";
 import ReadingProgressBar from "../components/common/ReadingProgressBar";
@@ -106,15 +106,17 @@ const BlogDetails = () => {
   );
 
   const sanitizedContent = DOMPurify.sanitize(post.content || "");
-  const formattedDate = post.createdAt?.seconds 
-    ? format(post.createdAt.seconds * 1000, "MMMM dd, yyyy") 
-    : "Recently Published";
+  const formattedDate = post.createdAt instanceof Date 
+    ? format(post.createdAt, "MMMM dd, yyyy") 
+    : (post.createdAt?.seconds 
+        ? format(post.createdAt.seconds * 1000, "MMMM dd, yyyy") 
+        : "Recently Published");
 
   const shareUrl = window.location.href;
   const shareTitle = post.title;
 
   return (
-    <div className="pb-5">
+    <div className="pb-5 bg-white">
       <ReadingProgressBar />
       <SEOHead 
         title={post.title} 
@@ -123,12 +125,15 @@ const BlogDetails = () => {
         slug={`blog/${post.slug}`} 
         article={true} 
       />
+      
+      {/* Load professional Bengali font */}
+      <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Admin Quick Edit Button */}
       {isAdmin && (
         <Link 
           to={`/admin/edit/${post.id}`}
-          className="btn btn-primary rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center p-0"
+          className="btn btn-accent rounded-circle shadow-lg position-fixed d-flex align-items-center justify-content-center p-0"
           style={{ 
             bottom: '30px', 
             right: '30px', 
@@ -145,29 +150,30 @@ const BlogDetails = () => {
         </Link>
       )}
 
-      {/* Header Image */}
-      <div className="blog-hero position-relative mb-5">
-        <img 
-          src={post.coverImage || "https://via.placeholder.com/1600x900"} 
-          className="w-100 h-100 object-fit-cover shadow-sm" 
-          alt={post.title} 
-        />
-        <div className="position-absolute bottom-0 start-0 w-100 p-3 p-md-5 bg-gradient-dark text-white">
-          <div className="container">
-            <Link to={`/category/${post.category}`} className="badge bg-primary px-3 py-2 rounded-pill text-uppercase small fw-bold mb-3 text-decoration-none text-white">
-              {post.category}
-            </Link>
-            <h1 className="blog-title fw-bold display-font mb-4 lh-sm">{post.title}</h1>
-            <div className="d-flex flex-wrap align-items-center gap-3 gap-md-4 small opacity-75">
-              <div className="d-flex align-items-center"><Calendar size={16} className="me-2" /> {formattedDate}</div>
-              <div className="d-flex align-items-center"><User size={16} className="me-2" /> By Admin</div>
-              <div className="d-flex align-items-center"><MessageCircle size={16} className="me-2" /> 0 Comments</div>
+      {/* Al-Kawsar Style Header */}
+      <div className="article-header-traditional border-bottom py-4 py-md-5 mb-4 bg-light bg-opacity-50">
+        <div className="container text-center">
+          <Link to={`/category/${post.category}`} className="text-decoration-none text-accent fw-bold text-uppercase small tracking-widest mb-3 d-block">
+            {post.category}
+          </Link>
+          <h1 className="blog-title-traditional display-5 fw-bold mb-4 text-dark lh-base px-2">
+            {post.title}
+          </h1>
+          
+          <div className="d-flex flex-wrap justify-content-center align-items-center gap-3 gap-md-4 text-muted small pb-2 px-3">
+            <div className="d-flex align-items-center border-end-md pe-md-3 border-secondary border-opacity-25">
+              <User size={16} className="me-2 text-accent" /> Written by Admin
+            </div>
+            <div className="d-flex align-items-center border-end-md pe-md-3 border-secondary border-opacity-25">
+              <Calendar size={16} className="me-2 text-accent" /> {formattedDate}
+            </div>
+            <div className="d-flex align-items-center">
               <button 
                 onClick={handleLike}
-                className={`btn btn-sm rounded-pill px-3 d-flex align-items-center transition ${post.likes?.includes(user?.uid) ? "btn-danger" : "btn-outline-light"}`}
+                className={`btn btn-link btn-sm p-0 text-decoration-none d-flex align-items-center transition ${post.likes?.includes(user?.uid) ? "text-danger" : "text-muted"}`}
                 disabled={isLiking}
               >
-                <Heart size={16} className={`me-2 ${post.likes?.includes(user?.uid) ? "fill-white" : ""}`} /> 
+                <Heart size={16} className={`me-2 ${post.likes?.includes(user?.uid) ? "fill-danger" : ""}`} /> 
                 {post.likeCount || 0} Likes
               </button>
             </div>
@@ -175,85 +181,137 @@ const BlogDetails = () => {
         </div>
       </div>
 
-      <div className="container" style={{ paddingTop: '2rem' }}>
+      <div className="container">
         <div className="row">
           <div className="col-lg-8 mx-auto">
-            <article className="bg-white p-3 p-md-5 rounded-4 shadow-sm mb-5 border">
+            {/* Main Featured Image */}
+            <div className="mb-5 rounded-4 overflow-hidden shadow-sm border mx-2 mx-md-0">
+              <img 
+                src={post.coverImage || "https://via.placeholder.com/1600x900"} 
+                className="w-100 h-auto object-fit-cover" 
+                alt={post.title} 
+                style={{ maxHeight: '500px' }}
+              />
+            </div>
+
+            <article className="article-body-traditional mb-5 px-3 px-md-0">
               {/* Content */}
               <div 
-                className="blog-content lh-lg"
+                className="blog-content-traditional"
                 dangerouslySetInnerHTML={{ __html: sanitizedContent }}
               />
 
-              <hr className="my-5 opacity-10" />
-
-              {/* Tags & Share */}
-              <div className="d-flex flex-wrap justify-content-between align-items-center gap-4">
-                <div className="d-flex flex-wrap gap-2">
-                  {post.tags && post.tags.map((tag) => (
-                    <span key={tag} className="badge bg-light text-muted px-3 py-2 rounded-pill small">
-                      <Tag size={12} className="me-1" /> {tag}
-                    </span>
-                  ))}
-                </div>
-                
-                <div className="d-flex align-items-center gap-3">
-                  <span className="fw-bold small text-uppercase tracking-wider text-muted">Share:</span>
-                  <a href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`} target="_blank" className="text-muted hover-primary transition"><Twitter size={20} /></a>
-                  <a href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" className="text-muted hover-primary transition"><Facebook size={20} /></a>
-                  <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`} target="_blank" className="text-muted hover-primary transition"><Linkedin size={20} /></a>
+              <div className="mt-5 pt-4 border-top">
+                <div className="d-flex flex-wrap justify-content-between align-items-center gap-4">
+                  <div className="d-flex flex-wrap gap-2">
+                    {post.tags && post.tags.map((tag) => (
+                      <span key={tag} className="tag-traditional">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  <div className="d-flex align-items-center gap-3">
+                    <span className="fw-bold small text-uppercase tracking-wider text-muted">Share:</span>
+                    <a href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`} target="_blank" className="text-muted hover-accent transition"><Twitter size={18} /></a>
+                    <a href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" className="text-muted hover-accent transition"><Facebook size={18} /></a>
+                    <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`} target="_blank" className="text-muted hover-accent transition"><Linkedin size={18} /></a>
+                  </div>
                 </div>
               </div>
             </article>
 
             {/* In-article Ad */}
-            <AdBanner label="Post Bottom Ad Slot" height="200px" />
-
-            {/* Author Box */}
-            <div className="bg-white border p-4 rounded-4 mb-5 shadow-sm">
-              <div className="d-flex align-items-center gap-3 gap-md-4">
-                <img src="https://via.placeholder.com/100" className="rounded-circle shadow-sm author-img border" width="80" height="80" alt="Admin" />
-                <div>
-                  <h6 className="fw-bold mb-1">Written by Admin</h6>
-                  <p className="text-muted small mb-0">
-                    A passionate writer and developer sharing thoughts on modern technology and lifestyle.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <AdBanner label="Post Bottom Ad Slot" height="150px" />
 
             {/* Navigation */}
-            <div className="d-flex justify-content-between mb-5 mb-lg-0">
-              <Link to="/" className="btn btn-outline-dark rounded-pill px-4 d-flex align-items-center fw-bold transition hover-scale">
+            <div className="text-center mt-5 mb-4">
+              <Link to="/" className="btn btn-outline-accent rounded-pill px-5 py-2 fw-bold transition hover-scale">
                 <ChevronLeft size={18} className="me-2" /> Back to Home
               </Link>
             </div>
-          </div>
-
-          <div className="col-lg-4 d-lg-none">
-            <Sidebar />
           </div>
         </div>
       </div>
 
       <style>{`
-        .blog-hero { height: 500px; }
-        .blog-title { font-size: 3.5rem; }
-        .bg-gradient-dark { background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); }
-        .blog-content { font-size: 1.15rem; color: #333; }
-        .blog-content p { margin-bottom: 1.5rem; }
-        .blog-content h2, .blog-content h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; }
-        .blog-content img { max-width: 100%; height: auto; border-radius: 12px; margin: 2rem 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .hover-primary:hover { color: var(--bs-primary) !important; }
+        :root { --accent-color: #006400; }
+        .text-accent { color: var(--accent-color); }
+        .btn-accent { background-color: var(--accent-color); color: white; border: none; }
+        .btn-accent:hover { background-color: #004d00; color: white; }
+        .btn-outline-accent { color: var(--accent-color); border-color: var(--accent-color); }
+        .btn-outline-accent:hover { background-color: var(--accent-color); color: white; }
+        .hover-accent:hover { color: var(--accent-color) !important; }
+
+        .article-header-traditional { border-top: 4px solid var(--accent-color); }
+        .blog-title-traditional { 
+          font-family: 'Hind Siliguri', 'SolaimanLipi', 'Siyam Rupali', sans-serif; 
+          color: #1a1a1a; 
+          line-height: 1.5;
+        }
+
+        .blog-content-traditional { 
+          font-family: 'Hind Siliguri', 'SolaimanLipi', 'Siyam Rupali', sans-serif; 
+          font-size: 1.25rem; 
+          line-height: 1.8; 
+          color: #2c3e50;
+          text-align: left; /* Fixed: No more justification gaps */
+          word-wrap: break-word;
+          word-spacing: 0;
+          letter-spacing: 0;
+        }
+        
+        .blog-content-traditional p { 
+          margin-bottom: 1.8rem;
+          text-align: left; /* Ensure paragraphs don't inherit justification */
+        }
+        .blog-content-traditional h2, .blog-content-traditional h3 { 
+          color: var(--accent-color); 
+          font-weight: 700; 
+          margin-top: 3rem; 
+          margin-bottom: 1.5rem; 
+          border-left: 5px solid var(--accent-color);
+          padding-left: 1rem;
+          font-family: inherit;
+        }
+
+        .blog-content-traditional img { 
+          max-width: 100%; 
+          height: auto; 
+          border-radius: 8px; 
+          margin: 3rem auto; 
+          display: block;
+          border: 1px solid #eee;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        /* Support for Quill Text Alignment */
+        .ql-align-center { text-align: center; }
+        .ql-align-right { text-align: right; }
+        .ql-align-justify { text-align: justify; }
+
+        .tag-traditional {
+          font-size: 0.85rem;
+          color: var(--accent-color);
+          background: #f0fdf4;
+          padding: 4px 12px;
+          border-radius: 4px;
+          border: 1px solid #dcfce7;
+        }
+
+        .tracking-widest { letter-spacing: 0.2em; }
+        .fill-danger { fill: #dc3545; }
         .hover-scale:hover { transform: scale(1.02); }
         .transition { transition: all 0.3s ease; }
-        .tracking-wider { letter-spacing: 0.1em; }
+
+        @media (min-width: 768px) {
+          .border-end-md { border-right: 1px solid rgba(0,0,0,0.1); }
+        }
 
         @media (max-width: 768px) {
-          .blog-hero { height: 350px; }
-          .blog-title { font-size: 2rem; }
-          .blog-content { font-size: 1.05rem; }
-          .author-img { width: 60px; height: 60px; }
+          .blog-title-traditional { font-size: 1.8rem; }
+          .blog-content-traditional { font-size: 1.15rem; text-align: left; line-height: 1.8; }
+          .article-header-traditional { padding-top: 2.5rem !important; padding-bottom: 2.5rem !important; }
         }
       `}</style>
     </div>
