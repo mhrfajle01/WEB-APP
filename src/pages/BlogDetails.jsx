@@ -256,11 +256,21 @@ const BlogDetails = () => {
           line-height: 1.8; 
           color: #2c3e50;
           text-align: left; 
-          overflow-wrap: break-word; /* Modern property for wrapping long links */
-          word-break: normal; /* Critical for Bengali: prevents splitting syllables */
-          line-break: strict; /* Keeps complex clusters together */
-          word-spacing: 0;
-          letter-spacing: 0;
+          word-break: keep-all; 
+          overflow-wrap: normal; /* Prevents breaking within words */
+          hyphens: none;
+          -webkit-hyphens: none;
+          line-break: strict;
+          text-rendering: optimizeLegibility; 
+          -webkit-font-smoothing: antialiased;
+        }
+
+        /* Allow only links and code to wrap/break if too long */
+        .blog-content-traditional a, 
+        .blog-content-traditional code,
+        .blog-content-traditional pre {
+          overflow-wrap: break-word;
+          word-break: break-all;
         }
         
         .blog-content-traditional p { 
